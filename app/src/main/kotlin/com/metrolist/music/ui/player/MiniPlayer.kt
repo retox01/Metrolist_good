@@ -385,23 +385,23 @@ private fun NewMiniPlayer(
                     .then(
                         if (isGlassStyle) {
                             Modifier.shadow(
-                                elevation = 4.dp,
+                                elevation = 18.dp,
                                 shape = miniPlayerShape,
-                                ambientColor = primaryColor.copy(alpha = 0.3f),
-                                spotColor = primaryColor.copy(alpha = 0.3f),
+                                ambientColor = primaryColor.copy(alpha = 0.85f),
+                                spotColor = primaryColor.copy(alpha = 0.85f),
                             )
                         } else {
                             Modifier
                         },
                     )
                     .clip(miniPlayerShape)
-                    .background(color = if (isGlassStyle) backgroundColor.copy(alpha = 0.68f) else backgroundColor)
+                    .background(color = if (isGlassStyle) backgroundColor.copy(alpha = 0.55f) else backgroundColor)
                     .then(
                         if (isGlassStyle) {
                             Modifier.border(
-                                width = 1.dp,
+                                width = 1.5.dp,
                                 brush = Brush.verticalGradient(
-                                    listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f)),
+                                    listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.1f)),
                                 ),
                                 shape = miniPlayerShape,
                             )

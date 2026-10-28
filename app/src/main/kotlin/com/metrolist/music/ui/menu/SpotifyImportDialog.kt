@@ -169,13 +169,13 @@ fun SpotifyImportDialog(
             val accent = MaterialTheme.colorScheme.primary
             Box(
                 modifier = Modifier
-                    .shadow(elevation = 24.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
+                    .shadow(elevation = 28.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
                     .clip(glassShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
                     .border(
-                        width = 1.dp,
+                        width = 1.5.dp,
                         brush = Brush.verticalGradient(
-                            listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.04f)),
+                            listOf(Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.12f)),
                         ),
                         shape = glassShape,
                     )

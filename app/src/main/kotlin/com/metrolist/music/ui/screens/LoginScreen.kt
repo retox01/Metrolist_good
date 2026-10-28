@@ -417,10 +417,10 @@ fun LoginScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(16.dp)
                     .fillMaxWidth()
-                    .shadow(elevation = 10.dp, shape = bannerShape, ambientColor = SecureLoginAccent, spotColor = SecureLoginAccent)
+                    .shadow(elevation = 22.dp, shape = bannerShape, ambientColor = SecureLoginAccent, spotColor = SecureLoginAccent)
                     .clip(bannerShape)
                     .background(Color(0xFF123320).copy(alpha = 0.92f))
-                    .border(1.dp, SecureLoginAccent.copy(alpha = 0.6f), bannerShape)
+                    .border(2.dp, SecureLoginAccent, bannerShape)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Text(

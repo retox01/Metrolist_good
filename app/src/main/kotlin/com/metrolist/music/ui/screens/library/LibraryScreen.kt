@@ -186,10 +186,10 @@ fun LibraryScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(elevation = 8.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
+                    .shadow(elevation = 20.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
                     .clip(glassShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), glassShape),
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+                    .border(1.5.dp, Color.White.copy(alpha = 0.5f), glassShape),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -230,7 +230,7 @@ fun LibraryScreen() {
                     LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
                 )
                 .padding(16.dp)
-                .shadow(elevation = 12.dp, shape = smallFabShape, ambientColor = SpotifyGreen, spotColor = SpotifyGreen),
+                .shadow(elevation = 22.dp, shape = smallFabShape, ambientColor = SpotifyGreen, spotColor = SpotifyGreen),
         ) {
             SmallFloatingActionButton(
                 onClick = {
