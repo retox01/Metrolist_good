@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -373,15 +374,41 @@ private fun NewMiniPlayer(
                 },
     ) {
         val interactionSource = remember { MutableInteractionSource() }
+        val miniPlayerShape = RoundedCornerShape(32.dp)
+        val isGlassStyle = miniPlayerBackground == MiniPlayerBackgroundStyle.DEFAULT
         Box(
             modifier =
                 Modifier
                     .then(if (isTabletLandscape) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
                     .height(64.dp)
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+                    .then(
+                        if (isGlassStyle) {
+                            Modifier.shadow(
+                                elevation = 10.dp,
+                                shape = miniPlayerShape,
+                                ambientColor = primaryColor,
+                                spotColor = primaryColor,
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .clip(miniPlayerShape)
+                    .background(color = if (isGlassStyle) backgroundColor.copy(alpha = 0.82f) else backgroundColor)
+                    .then(
+                        if (isGlassStyle) {
+                            Modifier.border(
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f)),
+                                ),
+                                shape = miniPlayerShape,
+                            )
+                        } else {
+                            Modifier.border(1.dp, outlineColor.copy(alpha = 0.3f), miniPlayerShape)
+                        },
+                    )
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,

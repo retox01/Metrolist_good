@@ -113,6 +113,7 @@
     <string name="update_ready_title">Update downloaded — tap to install</string>
     <string name="spotify_import_shortcut_label">Import Spotify</string>
     <string name="download_and_install">Download and install</string>
+    <string name="login_secure_banner">🔒 Secure direct connection to Google — nothing is tracked or stored beyond this device</string>
     <string name="import_action">Import</string>
     <string name="ignore_action">Ignore</string>
     <string name="add_to_playlist">Add to playlist</string>
