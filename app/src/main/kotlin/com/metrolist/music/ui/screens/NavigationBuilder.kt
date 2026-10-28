@@ -6,6 +6,7 @@
 package com.metrolist.music.ui.screens
 
 import android.app.Activity
+import android.net.Uri
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,6 +26,7 @@ import androidx.navigation.compose.dialog
 import androidx.navigation.navArgument
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.PureBlackKey
+import com.metrolist.music.ui.menu.SpotifyImportDialog
 import com.metrolist.music.ui.screens.artist.ArtistAlbumsScreen
 import com.metrolist.music.ui.screens.artist.ArtistItemsScreen
 import com.metrolist.music.ui.screens.artist.ArtistScreen
@@ -253,6 +255,34 @@ fun NavGraphBuilder.navigationBuilder(
             ),
     ) {
         ArtistItemsScreen(navController)
+    }
+
+    composable(
+        route = "spotify_import?link={link}",
+        arguments =
+            listOf(
+                navArgument("link") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+    ) { backStackEntry ->
+        val link = backStackEntry.arguments?.getString("link")?.let(Uri::decode)
+        SpotifyImportDialog(
+            isVisible = true,
+            prefilledLink = link,
+            onDismiss = {
+                if (navController.currentDestination?.route == "spotify_import?link={link}") {
+                    navController.navigateUp()
+                }
+            },
+            onPlaylistCreated = { playlistId ->
+                navController.navigate("local_playlist/$playlistId") {
+                    popUpTo("spotify_import?link={link}") { inclusive = true }
+                }
+            },
+        )
     }
 
     composable(

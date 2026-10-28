@@ -20,4 +20,14 @@
             android:targetClass="com.metrolist.music.MainActivity"
             android:targetPackage="com.metrolist.music" />
     </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_spotify_import"
+        android:shortcutId="spotify_import"
+        android:shortcutShortLabel="@string/spotify_import_shortcut_label">
+        <intent
+            android:action="com.metrolist.music.action.SPOTIFY_IMPORT"
+            android:targetClass="com.metrolist.music.MainActivity"
+            android:targetPackage="com.metrolist.music" />
+    </shortcut>
 </shortcuts>

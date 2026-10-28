@@ -5,6 +5,9 @@
 
 package com.metrolist.music.ui.screens.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -14,14 +17,17 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +37,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -45,6 +55,7 @@ import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
+import com.metrolist.music.utils.UpdateDownloader
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +77,9 @@ fun UpdaterScreen(
     var showChangelog by remember { mutableStateOf(false) }
     var changelogContent by remember { mutableStateOf<String?>(null) }
     var checkError by remember { mutableStateOf<String?>(null) }
+    var downloadUrl by remember { mutableStateOf<String?>(null) }
+    var isDownloading by remember { mutableStateOf(false) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
     val failedToCheckUpdatesTemplate = stringResource(R.string.failed_to_check_updates)
 
     val coroutineScope = rememberCoroutineScope()
@@ -82,12 +96,30 @@ fun UpdaterScreen(
                             latestVersion = releaseInfo.versionName
                             updateAvailable = hasUpdate
                             changelogContent = releaseInfo.description
+                            downloadUrl = if (hasUpdate) Updater.getDownloadUrlForCurrentVariant(releaseInfo) else null
                         }
                     }.onFailure {
                         checkError = String.format(failedToCheckUpdatesTemplate, it.message ?: "Unknown error")
                     }
             }
             isChecking = false
+        }
+    }
+
+    fun performDownloadAndInstall() {
+        val url = downloadUrl ?: return
+        coroutineScope.launch {
+            isDownloading = true
+            downloadError = null
+            UpdateDownloader
+                .download(context, url)
+                .onSuccess { apkFile ->
+                    runCatching { UpdateDownloader.launchInstaller(context, apkFile) }
+                        .onFailure { downloadError = it.message }
+                }.onFailure {
+                    downloadError = it.message
+                }
+            isDownloading = false
         }
     }
 
@@ -216,26 +248,75 @@ fun UpdaterScreen(
 
         if (updateAvailable && latestVersion != null) {
             Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = { showChangelog = !showChangelog },
+
+            val accent = MaterialTheme.colorScheme.primary
+            val glassShape = RoundedCornerShape(20.dp)
+            Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        .shadow(elevation = 20.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
+                        .clip(glassShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f))
+                        .border(
+                            width = 1.dp,
+                            brush =
+                                Brush.verticalGradient(
+                                    listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.04f)),
+                                ),
+                            shape = glassShape,
+                        ).padding(20.dp),
             ) {
-                Text(if (showChangelog) stringResource(R.string.hide_changelog) else stringResource(R.string.view_changelog))
-            }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Icon(
+                        painter = painterResource(R.drawable.download),
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.latest_version_format, latestVersion!!),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
 
-            if (showChangelog && changelogContent != null) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = changelogContent!!,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                )
+                    Spacer(Modifier.height(12.dp))
+
+                    if (isDownloading) {
+                        CircularProgressIndicator(modifier = Modifier.padding(vertical = 8.dp), strokeWidth = 2.dp)
+                    } else {
+                        Button(
+                            onClick = { performDownloadAndInstall() },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = accent),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .shadow(elevation = 10.dp, shape = RoundedCornerShape(14.dp), ambientColor = accent, spotColor = accent),
+                        ) {
+                            Text(stringResource(R.string.download_and_install))
+                        }
+                    }
+
+                    downloadError?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    TextButton(onClick = { showChangelog = !showChangelog }) {
+                        Text(if (showChangelog) stringResource(R.string.hide_changelog) else stringResource(R.string.view_changelog))
+                    }
+
+                    if (showChangelog && changelogContent != null) {
+                        Text(
+                            text = changelogContent!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        )
+                    }
+                }
             }
         }
 

@@ -532,6 +532,11 @@ class MusicService :
     // mediaId is already running, so at most one is ever in flight per song.
     private val recoveringSongs = Collections.synchronizedSet(mutableSetOf<String>())
 
+    // Dedupes prefetchNextStreamDeduped() the same way recoveringSongs dedupes
+    // recoverSong(): onMediaItemTransition can fire again (e.g. repeat/seek)
+    // before a previous prefetch for the same mediaId finished.
+    private val prefetchingSongs = Collections.synchronizedSet(mutableSetOf<String>())
+
     // Flag to bypass cache when quality changes - forces fresh stream fetch
     private val bypassCacheForQualityChange = mutableSetOf<String>()
 
@@ -2577,6 +2582,13 @@ class MusicService :
         }
         previousMediaItemIndex = player.currentMediaItemIndex
 
+        // Resolve the upcoming song's stream URL now, while the current one plays,
+        // so the next skip/transition doesn't pay the network round trip.
+        val nextIndex = player.nextMediaItemIndex
+        if (nextIndex != C.INDEX_UNSET) {
+            player.getMediaItemAt(nextIndex).mediaId.let { prefetchNextStreamDeduped(it) }
+        }
+
         lastPlaybackSpeed = -1.0f // force update song
 
         setupAudioNormalization()
@@ -3802,6 +3814,92 @@ class MusicService :
         } catch (e: Exception) {
             Timber.tag("DiscordSvc").w(e, "fetchArtistThumbnail: failed for artist=%s", artist.name)
             null
+        }
+    }
+
+    /**
+     * Resolves and caches the stream URL for [mediaId] ahead of time, so that when
+     * playback actually reaches that song (via skip or natural transition) the
+     * ResolvingDataSource in createDataSourceFactory() hits songUrlCache instead of
+     * blocking playback on a fresh network fetch. Without this, every skip pays for
+     * the full stream-resolution round trip at the moment of the skip — the delay
+     * users notice most when skipping via a headset button while the app isn't in
+     * the foreground, since there's no loading UI to mask it.
+     *
+     * No-op if a prefetch for this mediaId is already running, or if the song is
+     * already resolvable without a network call (fresh songUrlCache entry, or fully
+     * downloaded/cached).
+     */
+    private fun prefetchNextStreamDeduped(mediaId: String) {
+        if (!prefetchingSongs.add(mediaId)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                if (songUrlCache[mediaId] != null) return@launch
+
+                val storedFormat = database.format(mediaId).first()
+                val contentLength =
+                    storedFormat?.contentLength
+                        ?: ContentMetadata
+                            .getContentLength(downloadCache.getContentMetadata(mediaId))
+                            .takeIf { it > 0L }
+                        ?: CHUNK_LENGTH
+                if (downloadCache.isCached(mediaId, 0, contentLength)) return@launch
+                if (dataStore.get(EnableSongCacheKey, true) && playerCache.isCached(mediaId, 0, contentLength)) return@launch
+
+                val cacheGeneration = songUrlCache.generation(mediaId)
+                val song = database.songEntity(mediaId)
+                val playbackData =
+                    InnerTubeXPlayer
+                        .playerResponseForPlayback(
+                            mediaId,
+                            audioQuality = audioQuality,
+                            connectivityManager = connectivityManager,
+                            contentHints = ContentHints(
+                                isExplicit = song?.explicit,
+                                isUploaded = song?.isUploaded,
+                            ),
+                        ).getOrNull() ?: return@launch
+
+                playbackData.format.contentLength?.let { length ->
+                    database.query {
+                        upsert(
+                            FormatEntity(
+                                id = mediaId,
+                                itag = playbackData.format.itag,
+                                mimeType = playbackData.format.mimeType.substringBefore(";"),
+                                codecs =
+                                    playbackData.format.mimeType
+                                        .substringAfter("codecs=", missingDelimiterValue = "")
+                                        .substringBefore(";")
+                                        .trim()
+                                        .removeSurrounding("\""),
+                                bitrate = playbackData.format.bitrate,
+                                sampleRate = playbackData.format.audioSampleRate,
+                                contentLength = length,
+                                loudnessDb = playbackData.audioConfig?.loudnessDb,
+                                perceptualLoudnessDb = playbackData.audioConfig?.perceptualLoudnessDb,
+                                playbackUrl = playbackData.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
+                            ),
+                        )
+                    }
+                }
+
+                songUrlCache.put(
+                    mediaId = mediaId,
+                    url = playbackData.streamUrl,
+                    requestHeaders = playbackData.streamHeaders,
+                    clientName = playbackData.streamClient,
+                    expiresInSeconds = playbackData.streamExpiresInSeconds,
+                    requireBoundedRange = playbackData.requireBoundedRange,
+                    rangeChunkSizeBytes = playbackData.rangeChunkSizeBytes,
+                    useRangeChunks = playbackData.useRangeChunks,
+                    expectedGeneration = cacheGeneration,
+                )
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "Prefetch failed for $mediaId, will fall back to on-demand resolve")
+            } finally {
+                prefetchingSongs.remove(mediaId)
+            }
         }
     }
 

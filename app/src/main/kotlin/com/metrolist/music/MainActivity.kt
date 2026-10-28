@@ -109,6 +109,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import android.net.Uri
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
@@ -205,6 +206,8 @@ import com.metrolist.music.utils.ReleaseInfo
 import com.metrolist.music.utils.SearchRoutes
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.ArtistNameAliases
+import com.metrolist.music.utils.SpotifyImporter
+import com.metrolist.music.utils.UpdateDownloader
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.safeDataStoreEdit
@@ -242,6 +245,7 @@ class MainActivity : FragmentActivity() {
     companion object {
         private const val ACTION_SEARCH = "com.metrolist.music.action.SEARCH"
         private const val ACTION_LIBRARY = "com.metrolist.music.action.LIBRARY"
+        private const val ACTION_SPOTIFY_IMPORT = "com.metrolist.music.action.SPOTIFY_IMPORT"
         const val ACTION_RECOGNITION = "com.metrolist.music.action.RECOGNITION"
         const val ACTION_OPEN_WIDGET_TARGET = "com.metrolist.music.action.OPEN_WIDGET_TARGET"
         const val EXTRA_AUTO_START_RECOGNITION = "auto_start_recognition"
@@ -510,54 +514,70 @@ class MainActivity : FragmentActivity() {
                                     AvailableUpdate(release, downloadUrl, isKmp = false)
                                 }
                             }
-                    val kmpUpdate =
-                        Updater.getLatestKmpRelease().getOrNull()?.let { release ->
-                            release.assets.firstOrNull()?.let { asset ->
-                                AvailableUpdate(release, asset.downloadUrl, isKmp = true)
-                            }
-                        }
-                    val update = kmpUpdate ?: standaloneUpdate
+                    // The upstream Metrolist-KMP rewrite is a separate, unrelated project;
+                    // its releases must never shadow updates from this fork's own repo.
+                    val update = standaloneUpdate
                     availableUpdate = update?.takeUnless {
                         it.release.tagName == preferences[it.dismissalKey]
                     }
 
-                    if (update != null && notificationsEnabled) {
-                        val intent = Intent(Intent.ACTION_VIEW, update.downloadUrl.toUri())
-                        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
-                        val notificationText =
-                            if (update.isKmp) {
-                                getString(R.string.kmp_upgrade_warning)
-                            } else {
-                                update.release.versionName
+                    val canNotify =
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) ==
+                            PackageManager.PERMISSION_GRANTED
+
+                    if (update != null && notificationsEnabled && !update.isKmp) {
+                        // Download happens on its own, right away — DownloadManager shows the
+                        // normal system progress notification. Once it lands, jump straight to
+                        // the installer; if that's blocked because the app isn't in the
+                        // foreground anymore, fall back to a notification (tapping one is
+                        // always allowed to start the installer activity).
+                        UpdateDownloader.download(this@MainActivity, update.downloadUrl)
+                            .onSuccess { apkFile ->
+                                runCatching { UpdateDownloader.launchInstaller(this@MainActivity, apkFile) }
+                                    .onFailure {
+                                        if (canNotify) {
+                                            val pending =
+                                                PendingIntent.getActivity(
+                                                    this@MainActivity,
+                                                    1002,
+                                                    UpdateDownloader.installIntent(this@MainActivity, apkFile),
+                                                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                                                )
+                                            val notification =
+                                                NotificationCompat
+                                                    .Builder(this@MainActivity, "updates")
+                                                    .setSmallIcon(R.drawable.update)
+                                                    .setContentTitle(getString(R.string.update_ready_title))
+                                                    .setContentText(update.release.versionName)
+                                                    .setContentIntent(pending)
+                                                    .setAutoCancel(true)
+                                                    .build()
+                                            NotificationManagerCompat.from(this@MainActivity).notify(1002, notification)
+                                        }
+                                    }
                             }
+                    } else if (update?.isKmp == true && notificationsEnabled && canNotify) {
+                        val intent = Intent(Intent.ACTION_VIEW, update.downloadUrl.toUri())
+                        val pending =
+                            PendingIntent.getActivity(
+                                this@MainActivity,
+                                1001,
+                                intent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                            )
+                        val notificationText = getString(R.string.kmp_upgrade_warning)
                         val notification =
                             NotificationCompat
                                 .Builder(this@MainActivity, "updates")
                                 .setSmallIcon(R.drawable.update)
-                                .setContentTitle(
-                                    if (update.isKmp) {
-                                        getString(R.string.kmp_upgrade_title, update.release.versionName)
-                                    } else {
-                                        getString(R.string.update_available_title)
-                                    },
-                                )
+                                .setContentTitle(getString(R.string.kmp_upgrade_title, update.release.versionName))
                                 .setContentText(notificationText)
-                                .apply {
-                                    if (update.isKmp) {
-                                        setStyle(NotificationCompat.BigTextStyle().bigText(notificationText))
-                                    }
-                                }
+                                .setStyle(NotificationCompat.BigTextStyle().bigText(notificationText))
                                 .setContentIntent(pending)
                                 .setAutoCancel(true)
                                 .build()
-
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) ==
-                            PackageManager.PERMISSION_GRANTED
-                        ) {
-                            NotificationManagerCompat.from(this@MainActivity).notify(1001, notification)
-                        }
+                        NotificationManagerCompat.from(this@MainActivity).notify(1001, notification)
                     }
                 } else {
                     onLatestVersionNameChange(BuildConfig.BASE_VERSION_NAME)
@@ -1591,10 +1611,25 @@ class MainActivity : FragmentActivity() {
         intent: Intent,
         navController: NavHostController,
     ) {
+        if (intent.action == ACTION_SPOTIFY_IMPORT) {
+            intent.action = null
+            navController.navigate("spotify_import")
+            return
+        }
+
         val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
         intent.data = null
         intent.removeExtra(Intent.EXTRA_TEXT)
         val coroutineScope = lifecycle.coroutineScope
+
+        // Sharing a Spotify playlist link here (e.g. from the Spotify app's share sheet)
+        // used to fall through to the YouTube "playlist" handling below, which only
+        // understands a `?list=` query param — on a Spotify URL that's always missing, so
+        // it surfaced a misleading "playlist unavailable" toast. Route it to the importer.
+        if (SpotifyImporter.extractPlaylistId(uri.toString()) != null) {
+            navController.navigate("spotify_import?link=${Uri.encode(uri.toString())}")
+            return
+        }
 
         val listenCode =
             uri.getQueryParameter("code")

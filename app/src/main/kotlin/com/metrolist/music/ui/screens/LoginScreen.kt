@@ -207,7 +207,15 @@ fun LoginScreen(
                 clearCache(true)
                 clearFormData()
             }
-            CookieManager.getInstance().flush()
+            // The API now runs on the cookie STRING saved above (InnerTubeCookieKey), not on
+            // the WebView's cookie jar — so none of what Google's login page set (session
+            // cookies, any tracking cookies on accounts.google.com/google.com, etc.) needs to
+            // stay on the device once we have that string. Wipe it instead of leaving it to
+            // linger until the user eventually signs out.
+            CookieManager.getInstance().apply {
+                removeAllCookies(null)
+                flush()
+            }
 
             withContext(Dispatchers.Main) {
                 context.packageManager
@@ -344,6 +352,12 @@ fun LoginScreen(
                         setSupportZoom(true)
                         builtInZoomControls = true
                         displayZoomControls = false
+                        // Google refuses sign-in inside a WebView carrying the default
+                        // Android "wv" user agent ("this browser may not be secure").
+                        // Spoofing a desktop Chrome UA is the standard workaround.
+                        userAgentString =
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
                     }
                     addJavascriptInterface(jsInterface, "Android")
                     webViewRef = this
