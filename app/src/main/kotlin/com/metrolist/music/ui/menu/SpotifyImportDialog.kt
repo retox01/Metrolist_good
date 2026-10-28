@@ -102,13 +102,24 @@ fun SpotifyImportDialog(
                     withContext(Dispatchers.IO) {
                         playlist.tracks.forEach { track ->
                             val query = if (track.artist.isNotBlank()) "${track.artist} ${track.title}" else track.title
-                            val match =
+                            val candidates =
                                 YouTube
                                     .search(query, YouTube.SearchFilter.FILTER_SONG)
                                     .getOrNull()
                                     ?.items
                                     ?.filterIsInstance<SongItem>()
-                                    ?.firstOrNull()
+                                    ?.take(5)
+                                    .orEmpty()
+                            // The top search hit isn't always the right song -- a generic title
+                            // ("Intro", a common word, a one-word title) can rank a cover, a
+                            // remix, or an unrelated video first. Score every candidate on title
+                            // + artist + duration closeness instead of trusting result order.
+                            val match =
+                                candidates
+                                    .map { it to matchScore(track, it) }
+                                    .maxByOrNull { it.second }
+                                    ?.takeIf { it.second >= MIN_MATCH_SCORE }
+                                    ?.first
                             if (match != null) {
                                 database.query { insert(match.toMediaMetadata()) }
                                 matchedSongIds.add(match.id)
@@ -193,4 +204,49 @@ fun SpotifyImportDialog(
             }
         }
     }
+}
+
+private const val MIN_MATCH_SCORE = 0.45
+
+private fun matchScore(track: SpotifyImporter.SpotifyTrack, candidate: SongItem): Double {
+    val titleSim = stringSimilarity(track.title, candidate.title)
+    val artistSim =
+        if (track.artist.isBlank()) {
+            1.0
+        } else {
+            candidate.artists.maxOfOrNull { stringSimilarity(track.artist, it.name) } ?: 0.0
+        }
+    val targetSeconds = track.durationMs / 1000
+    val durationScore =
+        candidate.duration?.let { candidateSeconds ->
+            if (targetSeconds <= 0) {
+                0.5
+            } else {
+                (1.0 - (kotlin.math.abs(candidateSeconds - targetSeconds).toDouble() / targetSeconds)).coerceIn(0.0, 1.0)
+            }
+        } ?: 0.5
+    return titleSim * 0.5 + artistSim * 0.3 + durationScore * 0.2
+}
+
+private fun stringSimilarity(a: String, b: String): Double {
+    val s1 = a.trim().lowercase()
+    val s2 = b.trim().lowercase()
+    if (s1 == s2) return 1.0
+    if (s1.isEmpty() || s2.isEmpty()) return 0.0
+    if (s1.contains(s2) || s2.contains(s1)) return 0.85
+    val maxLength = maxOf(s1.length, s2.length)
+    return 1.0 - (levenshteinDistance(s1, s2).toDouble() / maxLength)
+}
+
+private fun levenshteinDistance(a: String, b: String): Int {
+    val dp = Array(a.length + 1) { IntArray(b.length + 1) }
+    for (i in 0..a.length) dp[i][0] = i
+    for (j in 0..b.length) dp[0][j] = j
+    for (i in 1..a.length) {
+        for (j in 1..b.length) {
+            val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+            dp[i][j] = minOf(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
+        }
+    }
+    return dp[a.length][b.length]
 }

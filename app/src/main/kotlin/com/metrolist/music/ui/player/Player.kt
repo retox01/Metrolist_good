@@ -1671,10 +1671,10 @@ fun BottomSheetPlayer(
                                 modifier =
                                     Modifier
                                         .shadow(
-                                            elevation = 10.dp,
+                                            elevation = 4.dp,
                                             shape = RoundedCornerShape(50),
-                                            ambientColor = sideButtonContainerColor,
-                                            spotColor = sideButtonContainerColor,
+                                            ambientColor = sideButtonContainerColor.copy(alpha = 0.35f),
+                                            spotColor = sideButtonContainerColor.copy(alpha = 0.35f),
                                         )
                                         .height(68.dp)
                                         .weight(backButtonWeight),
@@ -1717,10 +1717,10 @@ fun BottomSheetPlayer(
                                 modifier =
                                     Modifier
                                         .shadow(
-                                            elevation = 14.dp,
+                                            elevation = 6.dp,
                                             shape = RoundedCornerShape(50),
-                                            ambientColor = textButtonColor,
-                                            spotColor = textButtonColor,
+                                            ambientColor = textButtonColor.copy(alpha = 0.4f),
+                                            spotColor = textButtonColor.copy(alpha = 0.4f),
                                         )
                                         .height(68.dp)
                                         .weight(playPauseWeight)
@@ -1775,10 +1775,10 @@ fun BottomSheetPlayer(
                                 modifier =
                                     Modifier
                                         .shadow(
-                                            elevation = 10.dp,
+                                            elevation = 4.dp,
                                             shape = RoundedCornerShape(50),
-                                            ambientColor = sideButtonContainerColor,
-                                            spotColor = sideButtonContainerColor,
+                                            ambientColor = sideButtonContainerColor.copy(alpha = 0.35f),
+                                            spotColor = sideButtonContainerColor.copy(alpha = 0.35f),
                                         )
                                         .height(68.dp)
                                         .weight(nextButtonWeight),
@@ -1842,10 +1842,10 @@ fun BottomSheetPlayer(
                                 modifier =
                                     Modifier
                                         .shadow(
-                                            elevation = 14.dp,
+                                            elevation = 6.dp,
                                             shape = RoundedCornerShape(playPauseRoundness),
-                                            ambientColor = textButtonColor,
-                                            spotColor = textButtonColor,
+                                            ambientColor = textButtonColor.copy(alpha = 0.4f),
+                                            spotColor = textButtonColor.copy(alpha = 0.4f),
                                         )
                                         .size(72.dp)
                                         .clip(RoundedCornerShape(playPauseRoundness))
