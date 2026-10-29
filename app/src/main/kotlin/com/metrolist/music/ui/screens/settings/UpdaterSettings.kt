@@ -5,8 +5,6 @@
 
 package com.metrolist.music.ui.screens.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -37,14 +35,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.metrolist.music.ui.component.glass
 import androidx.navigation.NavController
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
@@ -256,16 +252,15 @@ fun UpdaterScreen(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .shadow(elevation = 28.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
-                        .clip(glassShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
-                        .border(
-                            width = 1.5.dp,
-                            brush =
-                                Brush.verticalGradient(
-                                    listOf(Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.12f)),
-                                ),
+                        .glass(
+                            backgroundColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            accentColor = accent,
                             shape = glassShape,
+                            elevation = 28.dp,
+                            backgroundAlpha = 0.6f,
+                            shadowAlpha = 1f,
+                            borderTopAlpha = 0.5f,
+                            borderBottomAlpha = 0.12f,
                         ).padding(20.dp),
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {

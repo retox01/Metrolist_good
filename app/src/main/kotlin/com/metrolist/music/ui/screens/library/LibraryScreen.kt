@@ -12,8 +12,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -43,6 +41,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import com.metrolist.music.ui.component.glass
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -186,10 +185,16 @@ fun LibraryScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(elevation = 20.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
-                    .clip(glassShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
-                    .border(1.5.dp, Color.White.copy(alpha = 0.5f), glassShape),
+                    .glass(
+                        backgroundColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        accentColor = accent,
+                        shape = glassShape,
+                        elevation = 20.dp,
+                        backgroundAlpha = 0.6f,
+                        shadowAlpha = 1f,
+                        borderTopAlpha = 0.5f,
+                        borderBottomAlpha = 0.5f,
+                    ),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

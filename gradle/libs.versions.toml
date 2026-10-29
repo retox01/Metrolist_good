@@ -1,6 +1,7 @@
 [versions]
 androidGradlePlugin = "9.4.1"
 browser = "1.10.0"
+webkit = "1.16.0"
 robolectric = "4.17"
 androidxTestCore = "1.7.0"
 json = "20260814"
@@ -60,6 +61,7 @@ materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "ma
 
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 browser = { module = "androidx.browser:browser", version.ref = "browser" }
+webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTestCore" }
 

@@ -90,7 +90,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -171,6 +170,7 @@ import com.metrolist.music.listentogether.RoomRole
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.ui.component.BottomSheet
 import com.metrolist.music.ui.component.BottomSheetState
+import com.metrolist.music.ui.component.clay3D
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.Lyrics
@@ -1670,12 +1670,7 @@ fun BottomSheetPlayer(
                                     ),
                                 modifier =
                                     Modifier
-                                        .shadow(
-                                            elevation = 16.dp,
-                                            shape = RoundedCornerShape(50),
-                                            ambientColor = sideButtonContainerColor.copy(alpha = 0.85f),
-                                            spotColor = sideButtonContainerColor.copy(alpha = 0.85f),
-                                        )
+                                        .clay3D(color = sideButtonContainerColor, elevation = 16.dp, shadowAlpha = 0.85f)
                                         .height(68.dp)
                                         .weight(backButtonWeight),
                             ) {
@@ -1716,12 +1711,7 @@ fun BottomSheetPlayer(
                                     ),
                                 modifier =
                                     Modifier
-                                        .shadow(
-                                            elevation = 20.dp,
-                                            shape = RoundedCornerShape(50),
-                                            ambientColor = textButtonColor.copy(alpha = 0.9f),
-                                            spotColor = textButtonColor.copy(alpha = 0.9f),
-                                        )
+                                        .clay3D(color = textButtonColor, elevation = 20.dp, shadowAlpha = 0.9f)
                                         .height(68.dp)
                                         .weight(playPauseWeight)
                                         .focusRequester(focusRequester),
@@ -1774,12 +1764,7 @@ fun BottomSheetPlayer(
                                     ),
                                 modifier =
                                     Modifier
-                                        .shadow(
-                                            elevation = 16.dp,
-                                            shape = RoundedCornerShape(50),
-                                            ambientColor = sideButtonContainerColor.copy(alpha = 0.85f),
-                                            spotColor = sideButtonContainerColor.copy(alpha = 0.85f),
-                                        )
+                                        .clay3D(color = sideButtonContainerColor, elevation = 16.dp, shadowAlpha = 0.85f)
                                         .height(68.dp)
                                         .weight(nextButtonWeight),
                             ) {
@@ -1841,11 +1826,11 @@ fun BottomSheetPlayer(
                             Box(
                                 modifier =
                                     Modifier
-                                        .shadow(
+                                        .clay3D(
+                                            color = textButtonColor,
                                             elevation = 20.dp,
                                             shape = RoundedCornerShape(playPauseRoundness),
-                                            ambientColor = textButtonColor.copy(alpha = 0.9f),
-                                            spotColor = textButtonColor.copy(alpha = 0.9f),
+                                            shadowAlpha = 0.9f,
                                         )
                                         .size(72.dp)
                                         .clip(RoundedCornerShape(playPauseRoundness))

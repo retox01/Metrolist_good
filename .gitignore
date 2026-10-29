@@ -4,6 +4,9 @@
 *.ap_
 *.aab
 
+# Local-only notes (kept out of this fork's history on request)
+/CLAUDE.md
+
 # Files for the ART/Dalvik VM
 *.dex
 

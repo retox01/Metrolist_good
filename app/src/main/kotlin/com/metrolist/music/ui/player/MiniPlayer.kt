@@ -61,7 +61,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -108,6 +107,7 @@ import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import com.metrolist.music.ui.component.glass
 import com.metrolist.music.ui.component.Icon as MIcon
 import androidx.compose.ui.draw.blur
 import com.metrolist.music.constants.MiniPlayerBackgroundStyle
@@ -384,29 +384,17 @@ private fun NewMiniPlayer(
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .then(
                         if (isGlassStyle) {
-                            Modifier.shadow(
-                                elevation = 18.dp,
+                            Modifier.glass(
+                                backgroundColor = backgroundColor,
+                                accentColor = primaryColor,
                                 shape = miniPlayerShape,
-                                ambientColor = primaryColor.copy(alpha = 0.85f),
-                                spotColor = primaryColor.copy(alpha = 0.85f),
+                                elevation = 18.dp,
                             )
                         } else {
                             Modifier
-                        },
-                    )
-                    .clip(miniPlayerShape)
-                    .background(color = if (isGlassStyle) backgroundColor.copy(alpha = 0.55f) else backgroundColor)
-                    .then(
-                        if (isGlassStyle) {
-                            Modifier.border(
-                                width = 1.5.dp,
-                                brush = Brush.verticalGradient(
-                                    listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.1f)),
-                                ),
-                                shape = miniPlayerShape,
-                            )
-                        } else {
-                            Modifier.border(1.dp, outlineColor.copy(alpha = 0.3f), miniPlayerShape)
+                                .clip(miniPlayerShape)
+                                .background(backgroundColor)
+                                .border(1.dp, outlineColor.copy(alpha = 0.3f), miniPlayerShape)
                         },
                     )
                     .clickable(

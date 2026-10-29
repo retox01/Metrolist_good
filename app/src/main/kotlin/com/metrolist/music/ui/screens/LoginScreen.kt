@@ -14,8 +14,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,8 +53,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -65,7 +63,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import coil3.compose.AsyncImage
+import com.metrolist.music.ui.component.glass
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeAccount
 import com.metrolist.innertube.utils.parseCookieString
@@ -367,6 +368,15 @@ fun LoginScreen(
                             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
                                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
                     }
+                    // The UA spoof above isn't enough on its own: WebView also auto-sends an
+                    // "X-Requested-With: <package name>" header on every request, which is what
+                    // Google's sign-in actually checks to detect "this is an embedded WebView,
+                    // not a real browser" and show "this browser may not be secure". Clearing
+                    // the allow-list removes that header entirely (silently skipped on devices
+                    // whose WebView is too old to support the API).
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+                        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
+                    }
                     addJavascriptInterface(jsInterface, "Android")
                     webViewRef = this
                     if (isSwitchingChannel) {
@@ -417,10 +427,16 @@ fun LoginScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(16.dp)
                     .fillMaxWidth()
-                    .shadow(elevation = 22.dp, shape = bannerShape, ambientColor = SecureLoginAccent, spotColor = SecureLoginAccent)
-                    .clip(bannerShape)
-                    .background(Color(0xFF123320).copy(alpha = 0.92f))
-                    .border(2.dp, SecureLoginAccent, bannerShape)
+                    .glass(
+                        backgroundColor = Color(0xFF123320),
+                        accentColor = SecureLoginAccent,
+                        shape = bannerShape,
+                        elevation = 22.dp,
+                        backgroundAlpha = 0.92f,
+                        shadowAlpha = 1f,
+                        borderWidth = 2.dp,
+                        borderBrush = SolidColor(SecureLoginAccent),
+                    )
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Text(

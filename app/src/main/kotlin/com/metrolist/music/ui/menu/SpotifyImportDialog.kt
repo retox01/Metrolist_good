@@ -6,8 +6,6 @@
 package com.metrolist.music.ui.menu
 
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -27,8 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +41,7 @@ import com.metrolist.music.R
 import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.ui.component.TextFieldDialog
+import com.metrolist.music.ui.component.glass
 import com.metrolist.music.utils.SpotifyImporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
@@ -169,15 +166,15 @@ fun SpotifyImportDialog(
             val accent = MaterialTheme.colorScheme.primary
             Box(
                 modifier = Modifier
-                    .shadow(elevation = 28.dp, shape = glassShape, ambientColor = accent, spotColor = accent)
-                    .clip(glassShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.12f)),
-                        ),
+                    .glass(
+                        backgroundColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        accentColor = accent,
                         shape = glassShape,
+                        elevation = 28.dp,
+                        backgroundAlpha = 0.6f,
+                        shadowAlpha = 1f,
+                        borderTopAlpha = 0.5f,
+                        borderBottomAlpha = 0.12f,
                     )
                     .padding(28.dp),
             ) {
