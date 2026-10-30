@@ -63,8 +63,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewFeature
 import coil3.compose.AsyncImage
 import com.metrolist.music.ui.component.glass
 import com.metrolist.innertube.YouTube
@@ -361,21 +359,6 @@ fun LoginScreen(
                         setSupportZoom(true)
                         builtInZoomControls = true
                         displayZoomControls = false
-                        // Google refuses sign-in inside a WebView carrying the default
-                        // Android "wv" user agent ("this browser may not be secure").
-                        // Spoofing a desktop Chrome UA is the standard workaround.
-                        userAgentString =
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-                                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-                    }
-                    // The UA spoof above isn't enough on its own: WebView also auto-sends an
-                    // "X-Requested-With: <package name>" header on every request, which is what
-                    // Google's sign-in actually checks to detect "this is an embedded WebView,
-                    // not a real browser" and show "this browser may not be secure". Clearing
-                    // the allow-list removes that header entirely (silently skipped on devices
-                    // whose WebView is too old to support the API).
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-                        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
                     }
                     addJavascriptInterface(jsInterface, "Android")
                     webViewRef = this
