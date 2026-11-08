@@ -1459,7 +1459,7 @@ class SyncUtils @Inject constructor(
             return@withContext
         }
 
-        executeUploadLocalPlaylists()
+        val justUploaded = executeUploadLocalPlaylists()
 
 
         withRetry {
@@ -1478,6 +1478,8 @@ class SyncUtils @Inject constructor(
                     val localPlaylists = database.playlistEntitiesByNameAsc().toMutableList()
                     localPlaylists.filterNot { it.browseId in remoteIds }
                         .filterNot { it.browseId == null }
+                        // YouTube can take a while to list a playlist created seconds ago.
+                        .filterNot { it.browseId in justUploaded }
                         .forEach { playlist ->
                             try {
                                 database.update(playlist.localToggleLike())
@@ -1514,7 +1516,7 @@ class SyncUtils @Inject constructor(
                             }
 
                             if (!isPlaylistBeingModified(playlistEntity.id)) {
-                                executeSyncPlaylist(playlist.id, playlistEntity.id)
+                                executeSyncPlaylist(playlist.id, playlistEntity.id, pushPending = playlist.id !in justUploaded)
                                 delay(DB_OPERATION_DELAY_MS)
                             } else {
                                 Timber.d("Skipping playlist ${playlist.title} — remove in progress")
@@ -1540,7 +1542,10 @@ class SyncUtils @Inject constructor(
     // Pushes phone-only playlists to the YouTube Music account so every client on that account
     // (Glassy Music on PC) sees them; the remote sync that follows then keeps them two-way.
     // Songs that fail to upload keep a null setVideoId, so preservedLocalSongs() keeps them locally.
-    private suspend fun executeUploadLocalPlaylists() {
+    // Returns the browseIds created this run. An interrupted upload is finished later by
+    // executeSyncPlaylist's pushPending step.
+    private suspend fun executeUploadLocalPlaylists(): Set<String> {
+        val uploaded = mutableSetOf<String>()
         val pending = database.playlistEntitiesByNameAsc().filter {
             it.browseId == null && it.isEditable && !it.isLocal && it.bookmarkedAt != null
         }
@@ -1550,6 +1555,7 @@ class SyncUtils @Inject constructor(
                     .onFailure { Timber.e(it, "uploadLocalPlaylists: create failed for ${playlist.name}") }
                     .getOrNull()?.takeIf { it.isNotBlank() } ?: continue
                 database.update(playlist.copy(browseId = browseId, isAutoSync = true))
+                uploaded += browseId
                 database.playlistSongMaps(playlist.id, from = 0).forEach { map ->
                     runCatching {
                         runQueuedPlaylistEdit { YouTube.addToPlaylist(browseId, map.songId).getOrThrow() }
@@ -1562,6 +1568,7 @@ class SyncUtils @Inject constructor(
                 Timber.e(e, "uploadLocalPlaylists: failed for ${playlist.name}")
             }
         }
+        return uploaded
     }
 
     private suspend fun executeSyncAutoSyncPlaylists() = withContext(Dispatchers.IO) {
@@ -1594,7 +1601,11 @@ class SyncUtils @Inject constructor(
         }
     }
 
-    private suspend fun executeSyncPlaylist(browseId: String, playlistId: String) = withContext(Dispatchers.IO) {
+    private suspend fun executeSyncPlaylist(
+        browseId: String,
+        playlistId: String,
+        pushPending: Boolean = true,
+    ) = withContext(Dispatchers.IO) {
         Timber.d("syncPlaylist: Starting sync for browseId=$browseId, playlistId=$playlistId")
 
         withRetry {
@@ -1662,6 +1673,23 @@ class SyncUtils @Inject constructor(
                         }
                     }
                     Timber.d("syncPlaylist: Successfully synced playlist")
+
+                    // Rows added on this phone that never reached YouTube (upload cut short,
+                    // offline add): push them now so the account, and Glassy Music, get them.
+                    // Ids already on the remote are skipped so nothing is doubled.
+                    val remoteIdSet = remoteIds.toSet()
+                    val toPush = preservedSongs.map { it.songId }.filter { it !in remoteIdSet }.distinct()
+                    if (pushPending && toPush.isNotEmpty() &&
+                        database.playlistBlocking(playlistId)?.isEditable == true &&
+                        !isPlaylistBeingModified(playlistId)
+                    ) {
+                        toPush.forEach { songId ->
+                            runCatching {
+                                runQueuedPlaylistEdit { YouTube.addToPlaylist(browseId, songId).getOrThrow() }
+                            }.onFailure { Timber.w("syncPlaylist: pending $songId not pushed to $browseId") }
+                        }
+                        Timber.d("syncPlaylist: pushed ${toPush.size} pending songs to $browseId")
+                    }
                 } catch (e: Exception) {
                     Timber.e(e, "Error processing playlist sync")
                 }
