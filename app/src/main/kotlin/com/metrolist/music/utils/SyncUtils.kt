@@ -1459,6 +1459,8 @@ class SyncUtils @Inject constructor(
             return@withContext
         }
 
+        executeUploadLocalPlaylists()
+
 
         withRetry {
             YouTube.library("FEmusic_liked_playlists").completed()
@@ -1532,6 +1534,33 @@ class SyncUtils @Inject constructor(
             }
         }.onFailure { e ->
             Timber.e(e, "Failed to sync saved playlists after retries")
+        }
+    }
+
+    // Pushes phone-only playlists to the YouTube Music account so every client on that account
+    // (Glassy Music on PC) sees them; the remote sync that follows then keeps them two-way.
+    // Songs that fail to upload keep a null setVideoId, so preservedLocalSongs() keeps them locally.
+    private suspend fun executeUploadLocalPlaylists() {
+        val pending = database.playlistEntitiesByNameAsc().filter {
+            it.browseId == null && it.isEditable && !it.isLocal && it.bookmarkedAt != null
+        }
+        for (playlist in pending) {
+            try {
+                val browseId = runCatching { YouTube.createPlaylist(playlist.name) }
+                    .onFailure { Timber.e(it, "uploadLocalPlaylists: create failed for ${playlist.name}") }
+                    .getOrNull()?.takeIf { it.isNotBlank() } ?: continue
+                database.update(playlist.copy(browseId = browseId, isAutoSync = true))
+                database.playlistSongMaps(playlist.id, from = 0).forEach { map ->
+                    runCatching {
+                        runQueuedPlaylistEdit { YouTube.addToPlaylist(browseId, map.songId).getOrThrow() }
+                    }.onFailure { Timber.w("uploadLocalPlaylists: ${map.songId} not added to ${playlist.name}") }
+                }
+                Timber.d("uploadLocalPlaylists: ${playlist.name} -> $browseId")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "uploadLocalPlaylists: failed for ${playlist.name}")
+            }
         }
     }
 
