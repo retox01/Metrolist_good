@@ -1680,7 +1680,7 @@ class SyncUtils @Inject constructor(
                     val remoteIdSet = remoteIds.toSet()
                     val toPush = preservedSongs.map { it.songId }.filter { it !in remoteIdSet }.distinct()
                     if (pushPending && toPush.isNotEmpty() &&
-                        database.playlistBlocking(playlistId)?.isEditable == true &&
+                        database.playlistBlocking(playlistId)?.playlist?.isEditable == true &&
                         !isPlaylistBeingModified(playlistId)
                     ) {
                         toPush.forEach { songId ->
