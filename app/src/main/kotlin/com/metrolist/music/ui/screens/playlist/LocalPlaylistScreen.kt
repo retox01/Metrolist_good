@@ -833,7 +833,29 @@ fun LocalPlaylistScreen(
                         )
                     }
                 } else if (!isSearching) {
-                    // Only search button remains in TopAppBar
+                    // "Envoyer vers Glassy Music": a code pasted into Glassy Music's import
+                    // window (Alt+Shift+S) adds every song to the account in one go.
+                    // Format must match parseMetrolistCode() in Glassy's spotify-import/main.ts.
+                    IconButton(
+                        onClick = {
+                            val p = playlist?.playlist ?: return@IconButton
+                            val code = "metrolist-sync|${p.browseId.orEmpty()}|" +
+                                songs.joinToString(",") { it.map.songId } + "|" + p.name
+                            context.startActivity(
+                                android.content.Intent.createChooser(
+                                    android.content.Intent(android.content.Intent.ACTION_SEND)
+                                        .setType("text/plain")
+                                        .putExtra(android.content.Intent.EXTRA_TEXT, code),
+                                    "Envoyer vers Glassy Music",
+                                ),
+                            )
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.sync),
+                            contentDescription = "Envoyer vers Glassy Music",
+                        )
+                    }
                     IconButton(
                         onClick = { isSearching = true },
                     ) {
