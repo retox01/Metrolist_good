@@ -246,6 +246,8 @@ class SyncUtils @Inject constructor(
         private const val DB_OPERATION_DELAY_MS = 50L
         private const val DB_QUERY_BATCH_SIZE = 500
         private const val PLAYLIST_EDIT_THROTTLE_MS = 500L
+        private const val BULK_ADD_PACE_MS = 1_000L
+        private val BULK_ADD_BACKOFF_MS = listOf(3_000L, 10_000L, 30_000L)
         private const val SNAPSHOT_LIKED_SONGS = "sync_snapshot_liked_songs"
         private const val SNAPSHOT_LIBRARY_SONGS = "sync_snapshot_library_songs"
         private const val SNAPSHOT_LIKED_ALBUMS = "sync_snapshot_liked_albums"
@@ -1542,6 +1544,31 @@ class SyncUtils @Inject constructor(
     // Pushes phone-only playlists to the YouTube Music account so every client on that account
     // (Glassy Music on PC) sees them; the remote sync that follows then keeps them two-way.
     // Songs that fail to upload keep a null setVideoId, so preservedLocalSongs() keeps them locally.
+    // Bulk adds: user report, only 5 of 90+ songs reached YouTube at the normal 500 ms pace, so
+    // YouTube throttles burst edits. Slower pace + growing back-off; anything still missing is
+    // retried by the next sync (pushPending), so this never has to succeed in one go.
+    private suspend fun pushSongsToRemote(browseId: String, songIds: List<String>) {
+        var failedInARow = 0
+        for (songId in songIds) {
+            // After 3 songs failing in a row, stop waiting (single try each): a song that can never
+            // be added (local file, removed video) must not block the ones after it.
+            val waits = if (failedInARow >= 3) emptyList() else BULK_ADD_BACKOFF_MS
+            var added = false
+            for (attempt in 0..waits.size) {
+                added = runCatching {
+                    runQueuedPlaylistEdit { YouTube.addToPlaylist(browseId, songId).getOrThrow() }
+                }.isSuccess
+                if (added || attempt == waits.size) break
+                delay(waits[attempt])
+            }
+            if (added) failedInARow = 0 else {
+                failedInARow++
+                Timber.w("pushSongsToRemote: $songId not added to $browseId")
+            }
+            delay(BULK_ADD_PACE_MS)
+        }
+    }
+
     // Returns the browseIds created this run. An interrupted upload is finished later by
     // executeSyncPlaylist's pushPending step.
     private suspend fun executeUploadLocalPlaylists(): Set<String> {
@@ -1556,11 +1583,7 @@ class SyncUtils @Inject constructor(
                     .getOrNull()?.takeIf { it.isNotBlank() } ?: continue
                 database.update(playlist.copy(browseId = browseId, isAutoSync = true))
                 uploaded += browseId
-                database.playlistSongMaps(playlist.id, from = 0).forEach { map ->
-                    runCatching {
-                        runQueuedPlaylistEdit { YouTube.addToPlaylist(browseId, map.songId).getOrThrow() }
-                    }.onFailure { Timber.w("uploadLocalPlaylists: ${map.songId} not added to ${playlist.name}") }
-                }
+                pushSongsToRemote(browseId, database.playlistSongMaps(playlist.id, from = 0).map { it.songId })
                 Timber.d("uploadLocalPlaylists: ${playlist.name} -> $browseId")
             } catch (e: CancellationException) {
                 throw e
@@ -1683,11 +1706,7 @@ class SyncUtils @Inject constructor(
                         database.playlistBlocking(playlistId)?.playlist?.isEditable == true &&
                         !isPlaylistBeingModified(playlistId)
                     ) {
-                        toPush.forEach { songId ->
-                            runCatching {
-                                runQueuedPlaylistEdit { YouTube.addToPlaylist(browseId, songId).getOrThrow() }
-                            }.onFailure { Timber.w("syncPlaylist: pending $songId not pushed to $browseId") }
-                        }
+                        pushSongsToRemote(browseId, toPush)
                         Timber.d("syncPlaylist: pushed ${toPush.size} pending songs to $browseId")
                     }
                 } catch (e: Exception) {
